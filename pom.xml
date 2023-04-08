@@ -22,10 +22,10 @@
         <url>https://github.com/NationalSecurityAgency/datawave-spring-boot-starter-cached-results</url>
     </scm>
     <properties>
-        <version.datawave>3.40.0-SNAPSHOT</version.datawave>
-        <version.microservice.hazelcast-client>1.10-SNAPSHOT</version.microservice.hazelcast-client>
-        <version.microservice.starter>1.6.9-SNAPSHOT</version.microservice.starter>
-        <version.microservice.starter-audit>1.4-SNAPSHOT</version.microservice.starter-audit>
+        <version.datawave>5.2.0-SNAPSHOT</version.datawave>
+        <version.microservice.hazelcast-client>3.0-SNAPSHOT</version.microservice.hazelcast-client>
+        <version.microservice.starter>3.0-SNAPSHOT</version.microservice.starter>
+        <version.microservice.starter-audit>3.0-SNAPSHOT</version.microservice.starter-audit>
         <version.microservice.starter-query>1.0-SNAPSHOT</version.microservice.starter-query>
         <version.mysql>8.0.32</version.mysql>
     </properties>
