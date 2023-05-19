@@ -67,7 +67,7 @@ public class CachedResultsQueryMonitor {
         }
         
         // schedule a new monitor task if the previous one has finished/expired
-        if (taskFuture != null && isMonitorIntervalExpired()) {
+        if (taskFuture == null && isMonitorIntervalExpired()) {
             taskStartTime = System.currentTimeMillis();
             try {
                 // @formatter:off
