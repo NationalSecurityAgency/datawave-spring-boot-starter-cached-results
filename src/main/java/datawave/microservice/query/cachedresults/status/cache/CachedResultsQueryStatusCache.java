@@ -1,13 +1,14 @@
 package datawave.microservice.query.cachedresults.status.cache;
 
-import datawave.microservice.authorization.user.DatawaveUserDetails;
-import datawave.microservice.cached.LockableCacheInspector;
-import datawave.microservice.query.cachedresults.status.CachedResultsQueryStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
+
+import datawave.microservice.authorization.user.DatawaveUserDetails;
+import datawave.microservice.cached.LockableCacheInspector;
+import datawave.microservice.query.cachedresults.status.CachedResultsQueryStatus;
 
 @CacheConfig(cacheNames = CachedResultsQueryStatusCache.CACHE_NAME)
 public class CachedResultsQueryStatusCache extends LockableCache<CachedResultsQueryStatus> {

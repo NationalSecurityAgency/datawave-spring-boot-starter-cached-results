@@ -1,10 +1,11 @@
 package datawave.microservice.query.cachedresults.monitor;
 
-import datawave.microservice.query.cachedresults.CachedResultsQueryService;
-import datawave.microservice.query.cachedresults.config.CachedResultsQueryProperties;
-import datawave.microservice.query.cachedresults.monitor.cache.MonitorStatusCache;
-import datawave.microservice.query.cachedresults.monitor.config.MonitorProperties;
-import datawave.microservice.query.cachedresults.status.cache.CachedResultsQueryCache;
+import java.sql.SQLException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -12,11 +13,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.sql.SQLException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import datawave.microservice.query.cachedresults.CachedResultsQueryService;
+import datawave.microservice.query.cachedresults.config.CachedResultsQueryProperties;
+import datawave.microservice.query.cachedresults.monitor.cache.MonitorStatusCache;
+import datawave.microservice.query.cachedresults.monitor.config.MonitorProperties;
+import datawave.microservice.query.cachedresults.status.cache.CachedResultsQueryCache;
 
 @Component
 @ConditionalOnProperty(name = {"datawave.query.cached-results.enabled", "datawave.query.cached-results.monitor.enabled"}, havingValue = "true",

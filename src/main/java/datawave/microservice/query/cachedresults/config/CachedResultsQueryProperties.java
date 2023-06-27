@@ -1,10 +1,10 @@
 package datawave.microservice.query.cachedresults.config;
 
-import org.springframework.boot.context.properties.ConfigurationProperties;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "datawave.query.cached-results")
 public class CachedResultsQueryProperties {

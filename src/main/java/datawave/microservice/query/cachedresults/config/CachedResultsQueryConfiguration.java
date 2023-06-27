@@ -1,17 +1,9 @@
 package datawave.microservice.query.cachedresults.config;
 
-import com.hazelcast.spring.cache.HazelcastCacheManager;
-import datawave.marking.ColumnVisibilitySecurityMarking;
-import datawave.marking.SecurityMarking;
-import datawave.microservice.cached.CacheInspector;
-import datawave.microservice.cached.LockableCacheInspector;
-import datawave.microservice.cached.LockableHazelcastCacheInspector;
-import datawave.microservice.cached.UniversalLockableCacheInspector;
-import datawave.core.query.cachedresults.CachedResultsQueryParameters;
-import datawave.microservice.query.cachedresults.status.cache.CachedResultsQueryCache;
-import datawave.microservice.query.cachedresults.status.cache.CachedResultsQueryIdByAliasCache;
-import datawave.microservice.query.cachedresults.status.cache.CachedResultsQueryIdByViewCache;
-import datawave.microservice.query.cachedresults.status.cache.CachedResultsQueryStatusCache;
+import java.util.function.Function;
+
+import javax.sql.DataSource;
+
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -29,8 +21,19 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.context.annotation.RequestScope;
 
-import javax.sql.DataSource;
-import java.util.function.Function;
+import com.hazelcast.spring.cache.HazelcastCacheManager;
+
+import datawave.core.query.cachedresults.CachedResultsQueryParameters;
+import datawave.marking.ColumnVisibilitySecurityMarking;
+import datawave.marking.SecurityMarking;
+import datawave.microservice.cached.CacheInspector;
+import datawave.microservice.cached.LockableCacheInspector;
+import datawave.microservice.cached.LockableHazelcastCacheInspector;
+import datawave.microservice.cached.UniversalLockableCacheInspector;
+import datawave.microservice.query.cachedresults.status.cache.CachedResultsQueryCache;
+import datawave.microservice.query.cachedresults.status.cache.CachedResultsQueryIdByAliasCache;
+import datawave.microservice.query.cachedresults.status.cache.CachedResultsQueryIdByViewCache;
+import datawave.microservice.query.cachedresults.status.cache.CachedResultsQueryStatusCache;
 
 @Configuration
 @EnableConfigurationProperties(CachedResultsQueryProperties.class)

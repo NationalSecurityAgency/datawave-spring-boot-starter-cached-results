@@ -1,5 +1,18 @@
 package datawave.microservice.query.cachedresults.monitor;
 
+import static datawave.microservice.query.cachedresults.CachedResultsQueryService.TABLE_PLACEHOLDER;
+import static datawave.microservice.query.cachedresults.status.CachedResultsQueryStatus.CACHED_RESULTS_STATE.LOADING;
+
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Callable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
+
 import datawave.microservice.query.cachedresults.CachedResultsQueryService;
 import datawave.microservice.query.cachedresults.config.CachedResultsQueryProperties;
 import datawave.microservice.query.cachedresults.monitor.cache.MonitorStatus;
@@ -8,18 +21,6 @@ import datawave.microservice.query.cachedresults.monitor.config.MonitorPropertie
 import datawave.microservice.query.cachedresults.status.CachedResultsQueryStatus;
 import datawave.microservice.query.cachedresults.status.cache.CachedResultsQueryCache;
 import datawave.webservice.query.exception.QueryException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataAccessException;
-import org.springframework.jdbc.core.JdbcTemplate;
-
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.Callable;
-
-import static datawave.microservice.query.cachedresults.CachedResultsQueryService.TABLE_PLACEHOLDER;
-import static datawave.microservice.query.cachedresults.status.CachedResultsQueryStatus.CACHED_RESULTS_STATE.LOADING;
 
 public class MonitorTask implements Callable<Void> {
     private final Logger log = LoggerFactory.getLogger(this.getClass());

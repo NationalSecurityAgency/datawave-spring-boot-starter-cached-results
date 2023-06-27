@@ -1,16 +1,9 @@
 package datawave.microservice.query.cachedresults;
 
-import datawave.microservice.authorization.user.DatawaveUserDetails;
-import datawave.microservice.query.cachedresults.config.CachedResultsQueryProperties;
-import datawave.security.authorization.JWTTokenHandler;
-import datawave.webservice.query.exception.DatawaveErrorCode;
-import datawave.webservice.query.exception.NoResultsQueryException;
-import datawave.webservice.query.exception.QueryException;
-import datawave.webservice.query.exception.QueryExceptionType;
-import datawave.webservice.result.BaseQueryResponse;
-import datawave.webservice.result.BaseResponse;
-import datawave.webservice.result.GenericResponse;
-import datawave.webservice.result.VoidResponse;
+import java.text.MessageFormat;
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.http.HttpHeaders;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,9 +15,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import java.text.MessageFormat;
-import java.time.Duration;
-import java.util.concurrent.TimeUnit;
+import datawave.microservice.authorization.user.DatawaveUserDetails;
+import datawave.microservice.query.cachedresults.config.CachedResultsQueryProperties;
+import datawave.security.authorization.JWTTokenHandler;
+import datawave.webservice.query.exception.DatawaveErrorCode;
+import datawave.webservice.query.exception.NoResultsQueryException;
+import datawave.webservice.query.exception.QueryException;
+import datawave.webservice.query.exception.QueryExceptionType;
+import datawave.webservice.result.BaseQueryResponse;
+import datawave.webservice.result.BaseResponse;
+import datawave.webservice.result.GenericResponse;
+import datawave.webservice.result.VoidResponse;
 
 @Service
 @ConditionalOnProperty(name = "datawave.query.cached-results.enabled", havingValue = "true", matchIfMissing = true)

@@ -1,14 +1,14 @@
 package datawave.microservice.query.cachedresults.status;
 
-import datawave.microservice.authorization.user.DatawaveUserDetails;
-import datawave.webservice.query.Query;
+import static datawave.microservice.query.cachedresults.status.CachedResultsQueryStatus.CACHED_RESULTS_STATE.LOADING;
 
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import static datawave.microservice.query.cachedresults.status.CachedResultsQueryStatus.CACHED_RESULTS_STATE.LOADING;
+import datawave.microservice.authorization.user.DatawaveUserDetails;
+import datawave.webservice.query.Query;
 
 public class CachedResultsQueryStatus implements Serializable {
     public enum CACHED_RESULTS_STATE {
