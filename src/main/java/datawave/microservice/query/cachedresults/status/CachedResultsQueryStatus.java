@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.Set;
 
 import datawave.microservice.authorization.user.DatawaveUserDetails;
-import datawave.webservice.query.Query;
+import datawave.microservice.query.Query;
 
 public class CachedResultsQueryStatus implements Serializable {
     public enum CACHED_RESULTS_STATE {
