@@ -4,6 +4,7 @@ import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cache.CacheManager;
@@ -30,7 +31,8 @@ public class MonitorConfig {
     private final Logger log = LoggerFactory.getLogger(this.getClass());
     
     @Bean
-    public MonitorStatusCache cachedResultsMonitorStatusCache(Function<CacheManager,CacheInspector> cacheInspectorFactory, CacheManager cacheManager) {
+    public MonitorStatusCache cachedResultsMonitorStatusCache(@Qualifier("cacheInspectorFactory") Function<CacheManager,CacheInspector> cacheInspectorFactory,
+                    CacheManager cacheManager) {
         log.debug("Using " + cacheManager.getClass() + " for caching");
         LockableCacheInspector lockableCacheInspector;
         if (cacheManager instanceof HazelcastCacheManager)

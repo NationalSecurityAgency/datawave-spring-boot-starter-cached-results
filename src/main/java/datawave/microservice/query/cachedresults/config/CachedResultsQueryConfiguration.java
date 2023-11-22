@@ -4,6 +4,7 @@ import java.util.function.Function;
 
 import javax.sql.DataSource;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -80,8 +81,8 @@ public class CachedResultsQueryConfiguration {
     }
     
     @Bean
-    public CachedResultsQueryIdByAliasCache cachedResultsQueryIdByAliasCache(Function<CacheManager,CacheInspector> cacheInspectorFactory,
-                    CacheManager cacheManager) {
+    public CachedResultsQueryIdByAliasCache cachedResultsQueryIdByAliasCache(
+                    @Qualifier("cacheInspectorFactory") Function<CacheManager,CacheInspector> cacheInspectorFactory, CacheManager cacheManager) {
         LockableCacheInspector lockableCacheInspector;
         if (cacheManager instanceof HazelcastCacheManager)
             lockableCacheInspector = new LockableHazelcastCacheInspector(cacheManager);
@@ -91,8 +92,8 @@ public class CachedResultsQueryConfiguration {
     }
     
     @Bean
-    public CachedResultsQueryIdByViewCache cachedResultsQueryIdByViewCache(Function<CacheManager,CacheInspector> cacheInspectorFactory,
-                    CacheManager cacheManager) {
+    public CachedResultsQueryIdByViewCache cachedResultsQueryIdByViewCache(
+                    @Qualifier("cacheInspectorFactory") Function<CacheManager,CacheInspector> cacheInspectorFactory, CacheManager cacheManager) {
         LockableCacheInspector lockableCacheInspector;
         if (cacheManager instanceof HazelcastCacheManager)
             lockableCacheInspector = new LockableHazelcastCacheInspector(cacheManager);
@@ -102,7 +103,8 @@ public class CachedResultsQueryConfiguration {
     }
     
     @Bean
-    public CachedResultsQueryStatusCache cachedResultsStatusCache(Function<CacheManager,CacheInspector> cacheInspectorFactory, CacheManager cacheManager) {
+    public CachedResultsQueryStatusCache cachedResultsStatusCache(
+                    @Qualifier("cacheInspectorFactory") Function<CacheManager,CacheInspector> cacheInspectorFactory, CacheManager cacheManager) {
         LockableCacheInspector lockableCacheInspector;
         if (cacheManager instanceof HazelcastCacheManager)
             lockableCacheInspector = new LockableHazelcastCacheInspector(cacheManager);
