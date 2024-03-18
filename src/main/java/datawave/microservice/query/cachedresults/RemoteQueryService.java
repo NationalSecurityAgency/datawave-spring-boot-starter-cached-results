@@ -15,9 +15,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import datawave.microservice.authorization.user.DatawaveUserDetails;
 import datawave.microservice.query.cachedresults.config.CachedResultsQueryProperties;
 import datawave.security.authorization.JWTTokenHandler;
+import datawave.security.authorization.ProxiedUserDetails;
 import datawave.webservice.query.exception.DatawaveErrorCode;
 import datawave.webservice.query.exception.NoResultsQueryException;
 import datawave.webservice.query.exception.QueryException;
@@ -50,14 +50,14 @@ public class RemoteQueryService implements QueryService {
         this.jwtTokenHandler = jwtTokenHandler;
     }
     
-    private String createBearerHeader(DatawaveUserDetails currentUser) {
+    private String createBearerHeader(ProxiedUserDetails currentUser) {
         return "Bearer " + jwtTokenHandler.createTokenFromUsers(currentUser.getPrimaryUser().getName(), currentUser.getProxiedUsers());
     }
     
     // TODO: JWO: Add timeout properties for each of the calls
     
     @Override
-    public GenericResponse<String> duplicate(String queryId, DatawaveUserDetails currentUser) throws QueryException {
+    public GenericResponse<String> duplicate(String queryId, ProxiedUserDetails currentUser) throws QueryException {
         log.info("RemoteQueryService duplicate {} for {}", queryId, currentUser.getPrimaryUser());
         
         try {
@@ -99,7 +99,7 @@ public class RemoteQueryService implements QueryService {
     }
     
     @Override
-    public BaseQueryResponse next(String queryId, DatawaveUserDetails currentUser) throws QueryException {
+    public BaseQueryResponse next(String queryId, ProxiedUserDetails currentUser) throws QueryException {
         log.info("RemoteQueryService next {} for {}", queryId, currentUser.getPrimaryUser());
         
         try {
@@ -144,7 +144,7 @@ public class RemoteQueryService implements QueryService {
     }
     
     @Override
-    public VoidResponse close(String queryId, DatawaveUserDetails currentUser) throws QueryException {
+    public VoidResponse close(String queryId, ProxiedUserDetails currentUser) throws QueryException {
         log.info("RemoteQueryService close {} for {}", queryId, currentUser.getPrimaryUser());
         
         try {
@@ -186,7 +186,7 @@ public class RemoteQueryService implements QueryService {
     }
     
     @Override
-    public VoidResponse cancel(String queryId, DatawaveUserDetails currentUser) throws QueryException {
+    public VoidResponse cancel(String queryId, ProxiedUserDetails currentUser) throws QueryException {
         log.info("RemoteQueryService cancel {} for {}", queryId, currentUser.getPrimaryUser());
         
         try {
@@ -228,7 +228,7 @@ public class RemoteQueryService implements QueryService {
     }
     
     @Override
-    public VoidResponse remove(String queryId, DatawaveUserDetails currentUser) throws QueryException {
+    public VoidResponse remove(String queryId, ProxiedUserDetails currentUser) throws QueryException {
         log.info("RemoteQueryService remove {} for {}", queryId, currentUser.getPrimaryUser());
         
         try {
