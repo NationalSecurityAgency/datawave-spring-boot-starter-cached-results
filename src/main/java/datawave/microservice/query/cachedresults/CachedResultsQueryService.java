@@ -169,6 +169,8 @@ public class CachedResultsQueryService {
      * @param currentUser
      *            the current user, not null
      * @return the view name
+     * @throws QueryException
+     *             if the operation fails
      */
     public GenericResponse<String> load(String definedQueryId, String alias, DatawaveUserDetails currentUser) throws QueryException {
         log.info("Request: {}/load from {} with alias: {}", definedQueryId, ProxiedEntityUtils.getShortName(currentUser.getPrimaryUser().getName()), alias);
