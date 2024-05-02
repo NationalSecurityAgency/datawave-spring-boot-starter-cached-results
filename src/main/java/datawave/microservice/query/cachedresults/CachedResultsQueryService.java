@@ -151,12 +151,6 @@ public class CachedResultsQueryService {
         }
     }
     
-    // Prior to the LOAD call, the user defines a query via the query API
-    
-    // TODO: JWO: Add a method to manually remove a query's results from the cache
-    
-    // TODO: JWO: Should this call stay open forever, or should we return immediately?
-    // I think the previous code stayed open forever.
     /**
      * Creates the specified query, runs it to completion, and caches the results in SQL
      *
@@ -250,7 +244,6 @@ public class CachedResultsQueryService {
                 }
             }
             
-            // TODO: JWO: Add some logic to eventually evict failed entries from the cache
             if (cachedResultsQueryStatus != null && cachedResultsQueryStatus.getState() == LOADING) {
                 cachedResultsQueryStatus.setState(FAILED);
             }
@@ -328,14 +321,12 @@ public class CachedResultsQueryService {
                 BaseQueryResponse nextResponse = null;
                 try {
                     nextResponse = queryService.next(cachedResultsQueryStatus.getRunningQueryId(), cachedResultsQueryStatus.getCurrentUser());
+                } catch (NoResultsQueryException e) {
+                    // the query is closed automatically if we exhaust the results.
+                    queryClosed = true;
                 } catch (QueryException e) {
-                    if (!(e instanceof NoResultsQueryException)) {
-                        log.error("Encountered an unexpected error calling next for {}", cachedResultsQueryStatus.getRunningQueryId());
-                        throw e;
-                    } else {
-                        // the query is closed automatically if we exhaust the results.
-                        queryClosed = true;
-                    }
+                    log.error("Encountered an unexpected error calling next for {}", cachedResultsQueryStatus.getRunningQueryId());
+                    throw e;
                 }
                 
                 if (nextResponse != null) {
@@ -356,8 +347,6 @@ public class CachedResultsQueryService {
                     } else {
                         done = true;
                     }
-                    
-                    // TODO: JWO: Should we read from the SQL table to determine the number of rows or trust our own count?
                 } else {
                     done = true;
                     
@@ -614,7 +603,6 @@ public class CachedResultsQueryService {
                             MessageFormat.format("{0} > {1}.", cachedResultsQueryParameters.getPagesize(), maxPageSize));
         }
         
-        // TODO: JWO: Figure out what this is all about...
         Set<String> fixedFields = new HashSet<>();
         if (!StringUtils.isEmpty(cachedResultsQueryParameters.getFixedFields())) {
             fixedFields = new HashSet<>();
@@ -1029,7 +1017,6 @@ public class CachedResultsQueryService {
         }
     }
     
-    // TODO: JWO: Don't have the service return the base query response. Let the cached results controller do that in the query service
     private BaseQueryResponse getRows(CachedResultsQueryStatus cachedResultsQueryStatus, Integer rowBegin, Integer rowEnd)
                     throws QueryException, CloneNotSupportedException {
         
@@ -1160,8 +1147,6 @@ public class CachedResultsQueryService {
             cachedResultsQueryStatus.setState(CANCELED);
             cachedResultsQueryCache.update(cachedResultsQueryStatus.getDefinedQueryId(), cachedResultsQueryStatus);
             
-            // TODO: JWO: Delete the data in mysql?
-            
             return new VoidResponse();
         } catch (QueryException e) {
             throw e;
@@ -1201,8 +1186,6 @@ public class CachedResultsQueryService {
             if (cachedResultsQueryStatus.getView() != null) {
                 cachedResultsQueryCache.removeQueryIdByViewLookup(cachedResultsQueryStatus.getView());
             }
-            
-            // TODO: JWO: Delete the data in mysql?
             
             return new VoidResponse();
         } catch (QueryException e) {
@@ -1356,7 +1339,6 @@ public class CachedResultsQueryService {
             if (!ownerUserId.equals(currentUserId)) {
                 throw new UnauthorizedQueryException(DatawaveErrorCode.QUERY_OWNER_MISMATCH, MessageFormat.format("{0} != {1}", currentUserId, ownerUserId));
             }
-            // TODO: JWO: Should we update lastUsedMillis since the user interacted with this query? I think yes...
         }
         
         return cachedResultsQueryStatus;

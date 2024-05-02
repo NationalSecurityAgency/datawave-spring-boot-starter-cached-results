@@ -35,8 +35,11 @@ public class RemoteQueryService implements QueryService {
     
     private final WebClient webClient;
     private final JWTTokenHandler jwtTokenHandler;
+    private final CachedResultsQueryProperties.RemoteQuery remoteQueryProperties;
     
     public RemoteQueryService(CachedResultsQueryProperties cachedResultsQueryProperties, WebClient.Builder webClientBuilder, JWTTokenHandler jwtTokenHandler) {
+        remoteQueryProperties = cachedResultsQueryProperties.getRemoteQuery();
+        
         // @formatter:off
         this.webClient = webClientBuilder
                 .baseUrl(cachedResultsQueryProperties.getRemoteQuery().getQueryServiceUri())
@@ -54,8 +57,6 @@ public class RemoteQueryService implements QueryService {
         return "Bearer " + jwtTokenHandler.createTokenFromUsers(currentUser.getPrimaryUser().getName(), currentUser.getProxiedUsers());
     }
     
-    // TODO: JWO: Add timeout properties for each of the calls
-    
     @Override
     public GenericResponse<String> duplicate(String queryId, ProxiedUserDetails currentUser) throws QueryException {
         log.info("RemoteQueryService duplicate {} for {}", queryId, currentUser.getPrimaryUser());
@@ -70,7 +71,7 @@ public class RemoteQueryService implements QueryService {
                     .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
                     .retrieve()
                     .toEntity(BaseResponse.class)
-                    .block(Duration.ofMillis(TimeUnit.SECONDS.toMillis(30)));
+                    .block(Duration.ofMillis(remoteQueryProperties.getDuplicateTimeoutMillis()));
             // @formatter:on
             
             QueryException queryException;
@@ -112,7 +113,7 @@ public class RemoteQueryService implements QueryService {
                     .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
                     .retrieve()
                     .toEntity(BaseResponse.class)
-                    .block(Duration.ofMillis(TimeUnit.HOURS.toMillis(1)));
+                    .block(Duration.ofMillis(remoteQueryProperties.getNextTimeoutMillis()));
             // @formatter:on
             
             QueryException queryException;
@@ -157,7 +158,7 @@ public class RemoteQueryService implements QueryService {
                     .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
                     .retrieve()
                     .toEntity(VoidResponse.class)
-                    .block(Duration.ofMillis(TimeUnit.HOURS.toMillis(1)));
+                    .block(Duration.ofMillis(remoteQueryProperties.getCloseTimeoutMillis()));
             // @formatter:on
             
             QueryException queryException;
@@ -199,7 +200,7 @@ public class RemoteQueryService implements QueryService {
                     .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
                     .retrieve()
                     .toEntity(VoidResponse.class)
-                    .block(Duration.ofMillis(TimeUnit.HOURS.toMillis(1)));
+                    .block(Duration.ofMillis(remoteQueryProperties.getCancelTimeoutMillis()));
             // @formatter:on
             
             QueryException queryException;
@@ -241,7 +242,7 @@ public class RemoteQueryService implements QueryService {
                     .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
                     .retrieve()
                     .toEntity(VoidResponse.class)
-                    .block(Duration.ofMillis(TimeUnit.HOURS.toMillis(1)));
+                    .block(Duration.ofMillis(remoteQueryProperties.getRemoveTimeoutMillis()));
             // @formatter:on
             
             QueryException queryException;

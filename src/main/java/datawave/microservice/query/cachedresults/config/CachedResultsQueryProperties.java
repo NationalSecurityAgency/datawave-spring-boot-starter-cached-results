@@ -162,6 +162,26 @@ public class CachedResultsQueryProperties {
         // max bytes to buffer for each rest call (-1 is unlimited)
         private int maxBytesToBuffer = -1;
         
+        private long duplicateTimeout = 30;
+        
+        private TimeUnit duplicateTimeoutUnit = TimeUnit.SECONDS;
+        
+        private long nextTimeout = 1;
+        
+        private TimeUnit nextTimeoutUnit = TimeUnit.HOURS;
+        
+        private long closeTimeout = 1;
+        
+        private TimeUnit closeTimeoutUnit = TimeUnit.HOURS;
+        
+        private long cancelTimeout = 30;
+        
+        private TimeUnit cancelTimeoutUnit = TimeUnit.SECONDS;
+        
+        private long removeTimeout = 30;
+        
+        private TimeUnit remoteTimeoutUnit = TimeUnit.SECONDS;
+        
         public String getQueryServiceUri() {
             return queryServiceUri;
         }
@@ -176,6 +196,106 @@ public class CachedResultsQueryProperties {
         
         public void setMaxBytesToBuffer(int maxBytesToBuffer) {
             this.maxBytesToBuffer = maxBytesToBuffer;
+        }
+        
+        public long getDuplicateTimeout() {
+            return duplicateTimeout;
+        }
+        
+        public long getDuplicateTimeoutMillis() {
+            return duplicateTimeoutUnit.toMillis(duplicateTimeout);
+        }
+        
+        public void setDuplicateTimeout(long duplicateTimeout) {
+            this.duplicateTimeout = duplicateTimeout;
+        }
+        
+        public TimeUnit getDuplicateTimeoutUnit() {
+            return duplicateTimeoutUnit;
+        }
+        
+        public void setDuplicateTimeoutUnit(TimeUnit duplicateTimeoutUnit) {
+            this.duplicateTimeoutUnit = duplicateTimeoutUnit;
+        }
+        
+        public long getNextTimeout() {
+            return nextTimeout;
+        }
+        
+        public long getNextTimeoutMillis() {
+            return nextTimeoutUnit.toMillis(nextTimeout);
+        }
+        
+        public void setNextTimeout(long nextTimeout) {
+            this.nextTimeout = nextTimeout;
+        }
+        
+        public TimeUnit getNextTimeoutUnit() {
+            return nextTimeoutUnit;
+        }
+        
+        public void setNextTimeoutUnit(TimeUnit nextTimeoutUnit) {
+            this.nextTimeoutUnit = nextTimeoutUnit;
+        }
+        
+        public long getCloseTimeout() {
+            return closeTimeout;
+        }
+        
+        public long getCloseTimeoutMillis() {
+            return closeTimeoutUnit.toMillis(closeTimeout);
+        }
+        
+        public void setCloseTimeout(long closeTimeout) {
+            this.closeTimeout = closeTimeout;
+        }
+        
+        public TimeUnit getCloseTimeoutUnit() {
+            return closeTimeoutUnit;
+        }
+        
+        public void setCloseTimeoutUnit(TimeUnit closeTimeoutUnit) {
+            this.closeTimeoutUnit = closeTimeoutUnit;
+        }
+        
+        public long getCancelTimeout() {
+            return cancelTimeout;
+        }
+        
+        public long getCancelTimeoutMillis() {
+            return cancelTimeoutUnit.toMillis(cancelTimeout);
+        }
+        
+        public void setCancelTimeout(long cancelTimeout) {
+            this.cancelTimeout = cancelTimeout;
+        }
+        
+        public TimeUnit getCancelTimeoutUnit() {
+            return cancelTimeoutUnit;
+        }
+        
+        public void setCancelTimeoutUnit(TimeUnit cancelTimeoutUnit) {
+            this.cancelTimeoutUnit = cancelTimeoutUnit;
+        }
+        
+        public long getRemoveTimeout() {
+            return removeTimeout;
+        }
+        
+        public long getRemoveTimeoutMillis() {
+            return remoteTimeoutUnit.toMillis(removeTimeout);
+        }
+        
+        public void setRemoveTimeout(long removeTimeout) {
+            this.removeTimeout = removeTimeout;
+        }
+        
+        public TimeUnit getRemoteTimeoutUnit() {
+            return remoteTimeoutUnit;
+        }
+        
+        public void setRemoteTimeoutUnit(TimeUnit remoteTimeoutUnit) {
+            this.remoteTimeoutUnit = remoteTimeoutUnit;
         }
     }
     
