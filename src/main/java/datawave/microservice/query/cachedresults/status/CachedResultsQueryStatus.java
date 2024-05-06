@@ -31,7 +31,6 @@ public class CachedResultsQueryStatus implements Serializable {
     private String grouping;
     private String order;
     private int pageSize = 10;
-    // NOTE: JWO: I have no idea what this buys us
     private Set<String> fixedFields = new HashSet<>();
     private String sqlQuery;
     private DatawaveUserDetails currentUser;

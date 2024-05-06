@@ -61,7 +61,7 @@ public class MonitorProperties {
     }
     
     public long getLockWaitTimeMillis() {
-        return lockWaitTime;
+        return lockWaitTimeUnit.toMillis(lockWaitTime);
     }
     
     public void setLockWaitTime(long lockWaitTime) {
