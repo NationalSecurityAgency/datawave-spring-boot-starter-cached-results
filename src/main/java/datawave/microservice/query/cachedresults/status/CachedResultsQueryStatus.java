@@ -12,7 +12,7 @@ import datawave.microservice.query.Query;
 
 public class CachedResultsQueryStatus implements Serializable {
     private static final long serialVersionUID = -3172313455309782821L;
-
+    
     public enum CACHED_RESULTS_STATE {
         LOADING, LOADED, CREATING, CREATED, CANCELED, FAILED
     }
