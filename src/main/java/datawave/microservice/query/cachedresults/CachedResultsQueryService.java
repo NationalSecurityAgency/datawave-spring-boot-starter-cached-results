@@ -831,6 +831,52 @@ public class CachedResultsQueryService {
         }
     }
     
+    private String genderateDeleteSqlQuery(CachedResultsQueryStatus cachedResultsQueryStatus) {
+        CachedResultsQueryParameters.validate(cachedResultsQueryStatus.getView());
+        Set<String> viewColumnNames = cachedResultsQueryStatus.getFieldIndexMap().keySet();
+        StringBuilder buf = new StringBuilder();
+        
+        String conditions = null;
+        if (!StringUtils.isEmpty(StringUtils.trimToNull(cachedResultsQueryStatus.getConditions()))) {
+            conditions = cachedResultsQueryStatus.getConditions();
+        }
+        if (null != conditions) {
+            // quote fields that are known columns
+            StringBuilder newConditions = new StringBuilder();
+            String[] conditionsSplit = conditions.split(" ");
+            for (String s : conditionsSplit) {
+                String field = s.replace("`", "").trim();
+                if (cachedResultsQueryStatus.getFieldIndexMap().containsKey(field) || isFunction(field)) {
+                    newConditions.append(quoteField(field, viewColumnNames)).append(SPACE);
+                } else {
+                    newConditions.append(s).append(SPACE);
+                }
+            }
+            if (newConditions.toString().trim().isEmpty()) {
+                conditions = null;
+            } else {
+                conditions = newConditions.toString().trim();
+            }
+        }
+        buf.append("DELETE ").append(" FROM ").append(cachedResultsQueryStatus.getView());
+        
+        String user = cachedResultsQueryStatus.getCurrentUser().getShortName();
+        if (conditions == null || conditions.isEmpty()) {
+            // create the condition
+            conditions = "_user_ = '" + user + "'";
+        } else {
+            // add it to the existing conditions
+            conditions = "_user_ = '" + user + "' AND (" + conditions + ")";
+        }
+        buf.append(" WHERE ").append(conditions);
+        
+        if (log.isTraceEnabled()) {
+            log.trace("sqlQuery: " + buf);
+        }
+        
+        return buf.toString();
+    }
+    
     public String generateSqlQuery(CachedResultsQueryStatus cachedResultsQueryStatus) {
         CachedResultsQueryParameters.validate(cachedResultsQueryStatus.getView());
         StringBuilder buf = new StringBuilder();
@@ -1230,6 +1276,9 @@ public class CachedResultsQueryService {
             
             cachedResultsQueryStatus.setState(CANCELED);
             cachedResultsQueryCache.update(cachedResultsQueryStatus.getDefinedQueryId(), cachedResultsQueryStatus);
+            
+            String delete = genderateDeleteSqlQuery(cachedResultsQueryStatus);
+            cachedResultsJdbcTemplate.execute(delete);
             
             return new VoidResponse();
         } catch (QueryException e) {
