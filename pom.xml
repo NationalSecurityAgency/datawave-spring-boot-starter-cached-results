@@ -8,7 +8,7 @@
         <relativePath>../../microservice-service-parent/pom.xml</relativePath>
     </parent>
     <artifactId>spring-boot-starter-datawave-cached-results</artifactId>
-    <version>1.0.5-SNAPSHOT</version>
+    <version>1.0.5</version>
     <url>https://code.nsa.gov/datawave-spring-boot-starter-cached-results</url>
     <licenses>
         <license>
@@ -26,7 +26,7 @@
         <version.microservice.hazelcast-client>4.0.2</version.microservice.hazelcast-client>
         <version.microservice.starter>4.0.2</version.microservice.starter>
         <version.microservice.starter-audit>4.0.2</version.microservice.starter-audit>
-        <version.microservice.starter-query>1.0.4</version.microservice.starter-query>
+        <version.microservice.starter-query>1.0.5</version.microservice.starter-query>
         <version.mysql>8.0.32</version.mysql>
     </properties>
     <dependencyManagement>
