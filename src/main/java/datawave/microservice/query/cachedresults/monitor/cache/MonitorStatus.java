@@ -4,7 +4,7 @@ import java.io.Serializable;
 
 public class MonitorStatus implements Serializable {
     private static final long serialVersionUID = -7220841882004976017L;
-
+    
     private long lastCheckedMillis;
     
     public long getLastCheckedMillis() {
