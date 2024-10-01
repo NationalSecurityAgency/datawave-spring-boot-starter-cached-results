@@ -120,7 +120,7 @@ public class CachedResultsQueryService {
     private final String preparedFields;
     private final String preparedValues;
     private final ExecutorService executorService = Executors.newCachedThreadPool();
-    
+
     public CachedResultsQueryService(CachedResultsQueryProperties cachedResultsQueryProperties, JdbcTemplate cachedResultsJdbcTemplate,
                     CachedResultsQueryCache cachedResultsQueryCache, QueryService queryService, AuditClient auditClient, SecurityMarking securityMarking,
                     QueryLogicFactory queryLogicFactory, QueryStorageCache queryStorageCache, ResponseObjectFactory responseObjectFactory,
@@ -611,13 +611,13 @@ public class CachedResultsQueryService {
         // this will allow cachedResultsQueryStatus to be accessed by the cachedQueryId
         cachedResultsQueryCache.putQueryIdByCachedQueryIdLookup(cachedResultsQueryParameters.getQueryId(), definedQueryId);
         cachedResultsQueryStatus.setCachedQueryId(cachedResultsQueryParameters.getQueryId());
-        
+
         // this will allow cachedResultsQueryStatus to be accessed by the alias
         if (cachedResultsQueryParameters.getAlias() != null) {
             cachedResultsQueryCache.putQueryIdByAliasLookup(cachedResultsQueryParameters.getAlias(), definedQueryId);
             cachedResultsQueryStatus.setAlias(cachedResultsQueryParameters.getAlias());
         }
-        
+
         if (cachedResultsQueryParameters.getPagesize() <= 0) {
             cachedResultsQueryParameters.setPagesize(cachedResultsQueryProperties.getDefaultPageSize());
         }
@@ -712,24 +712,24 @@ public class CachedResultsQueryService {
                 }
                 throw new QueryException(DatawaveErrorCode.QUERY_LOCKED_ERROR);
             }
-            
+
             cachedResultsQueryCache.createQuery(definedQueryId, queryId, alias, currentUser);
             cachedResultsQueryCache.lockedUpdate(definedQueryId, cachedResultsQueryStatus -> {
                 // this allows load() to differentiate between allowed loadAndCreateAsync calls (status == NONE) and
                 // disallowed duplicate load() calls (cachedResultsQueryStatus already exists and status != NONE)
                 cachedResultsQueryStatus.setState(NONE);
-                
+
                 // this will allow cachedResultsQueryStatus to be accessed by the cachedQueryId
                 cachedResultsQueryCache.putQueryIdByCachedQueryIdLookup(queryId, definedQueryId);
                 cachedResultsQueryStatus.setCachedQueryId(queryId);
-                
+
                 if (alias != null) {
                     // this will allow cachedResultsQueryStatus to be accessed by the alias
                     cachedResultsQueryCache.putQueryIdByAliasLookup(alias, definedQueryId);
                     cachedResultsQueryStatus.setAlias(alias);
                 }
             });
-            
+
             executorService.submit(() -> {
                 try {
                     scopedCachedResultsQueryParameters.getThreadLocalOverride().set(threadCachedResultsQueryParameters);
@@ -749,7 +749,7 @@ public class CachedResultsQueryService {
         }
         return response;
     }
-    
+
     private MultiValueMap<String,String> createAuditParameters(CachedResultsQueryStatus cachedResultsQueryStatus) {
         return createAuditParameters(null, cachedResultsQueryStatus);
     }
@@ -831,7 +831,7 @@ public class CachedResultsQueryService {
         }
     }
     
-    private String genderateDeleteSqlQuery(CachedResultsQueryStatus cachedResultsQueryStatus) {
+    private String generateDeleteSqlQuery(CachedResultsQueryStatus cachedResultsQueryStatus) {
         CachedResultsQueryParameters.validate(cachedResultsQueryStatus.getView());
         Set<String> viewColumnNames = cachedResultsQueryStatus.getFieldIndexMap().keySet();
         StringBuilder buf = new StringBuilder();
@@ -1277,7 +1277,7 @@ public class CachedResultsQueryService {
             cachedResultsQueryStatus.setState(CANCELED);
             cachedResultsQueryCache.update(cachedResultsQueryStatus.getDefinedQueryId(), cachedResultsQueryStatus);
             
-            String delete = genderateDeleteSqlQuery(cachedResultsQueryStatus);
+            String delete = generateDeleteSqlQuery(cachedResultsQueryStatus);
             cachedResultsJdbcTemplate.execute(delete);
             
             return new VoidResponse();
@@ -1315,7 +1315,10 @@ public class CachedResultsQueryService {
             if (cachedResultsQueryStatus.getCachedQueryId() != null) {
                 cachedResultsQueryCache.removeQueryIdByCachedQueryIdLookup(cachedResultsQueryStatus.getCachedQueryId());
             }
-            
+
+            String delete = generateDeleteSqlQuery(cachedResultsQueryStatus);
+            cachedResultsJdbcTemplate.execute(delete);
+
             if (cachedResultsQueryStatus.getAlias() != null) {
                 cachedResultsQueryCache.removeQueryIdByAliasLookup(cachedResultsQueryStatus.getAlias());
             }
@@ -1480,11 +1483,11 @@ public class CachedResultsQueryService {
         
         return cachedResultsQueryStatus;
     }
-    
+
     public ThreadLocal<SecurityMarking> getSecurityMarkingOverride() {
         return scopedSecurityMarking.getThreadLocalOverride();
     }
-    
+
     public ThreadLocal<CachedResultsQueryParameters> getCachedResultsQueryParametersOverride() {
         return scopedCachedResultsQueryParameters.getThreadLocalOverride();
     }
