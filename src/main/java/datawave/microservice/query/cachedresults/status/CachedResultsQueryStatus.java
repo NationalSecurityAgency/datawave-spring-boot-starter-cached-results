@@ -7,18 +7,19 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import datawave.microservice.authorization.user.DatawaveUserDetails;
 import datawave.microservice.query.Query;
+import datawave.security.authorization.ProxiedUserDetails;
 
 public class CachedResultsQueryStatus implements Serializable {
     private static final long serialVersionUID = -3172313455309782821L;
     
     public enum CACHED_RESULTS_STATE {
-        LOADING, LOADED, CREATING, CREATED, CANCELED, FAILED
+        NONE, LOADING, LOADED, CREATING, CREATED, CANCELED, FAILED
     }
     
     private CACHED_RESULTS_STATE state;
     private String definedQueryId;
+    private String cachedQueryId;
     private String alias;
     private String queryLogicName;
     private String origQuery;
@@ -35,11 +36,12 @@ public class CachedResultsQueryStatus implements Serializable {
     private int pageSize = 10;
     private Set<String> fixedFields = new HashSet<>();
     private String sqlQuery;
-    private DatawaveUserDetails currentUser;
+    private ProxiedUserDetails currentUser;
     private long lastUpdatedMillis;
     
-    public CachedResultsQueryStatus(String definedQueryId, String alias, DatawaveUserDetails currentUser) {
+    public CachedResultsQueryStatus(String definedQueryId, String cachedQueryId, String alias, ProxiedUserDetails currentUser) {
         this.definedQueryId = definedQueryId;
+        this.cachedQueryId = cachedQueryId;
         this.alias = alias;
         this.currentUser = currentUser;
         this.state = LOADING;
@@ -60,6 +62,14 @@ public class CachedResultsQueryStatus implements Serializable {
     
     public void setDefinedQueryId(String definedQueryId) {
         this.definedQueryId = definedQueryId;
+    }
+    
+    public String getCachedQueryId() {
+        return cachedQueryId;
+    }
+    
+    public void setCachedQueryId(String cachedQueryId) {
+        this.cachedQueryId = cachedQueryId;
     }
     
     public String getAlias() {
@@ -190,11 +200,11 @@ public class CachedResultsQueryStatus implements Serializable {
         this.sqlQuery = sqlQuery;
     }
     
-    public DatawaveUserDetails getCurrentUser() {
+    public ProxiedUserDetails getCurrentUser() {
         return currentUser;
     }
     
-    public void setCurrentUser(DatawaveUserDetails currentUser) {
+    public void setCurrentUser(ProxiedUserDetails currentUser) {
         this.currentUser = currentUser;
     }
     

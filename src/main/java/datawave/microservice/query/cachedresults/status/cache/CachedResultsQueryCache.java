@@ -1,41 +1,48 @@
 package datawave.microservice.query.cachedresults.status.cache;
 
-import datawave.microservice.authorization.user.DatawaveUserDetails;
 import datawave.microservice.query.cachedresults.config.CachedResultsQueryProperties;
 import datawave.microservice.query.cachedresults.status.CachedResultsQueryStatus;
 import datawave.microservice.query.cachedresults.status.cache.util.CacheUpdater;
 import datawave.microservice.query.cachedresults.status.cache.util.LockedCacheUpdateUtil;
+import datawave.security.authorization.ProxiedUserDetails;
 import datawave.webservice.query.exception.QueryException;
 
 public class CachedResultsQueryCache {
     private final CachedResultsQueryProperties cachedResultsQueryProperties;
     private final CachedResultsQueryStatusCache queryStatusCache;
-    private final CachedResultsQueryIdByAliasCache queryIdByAliasCache;
-    private final CachedResultsQueryIdByViewCache queryIdByViewCache;
+    private final DefinedQueryIdByCachedQueryIdCache definedQueryIdByCachedQueryIdCache;
+    private final DefinedQueryIdByAliasCache definedQueryIdByAliasCache;
+    private final DefinedQueryIdByViewCache definedQueryIdByViewCache;
     
     private LockedCacheUpdateUtil<CachedResultsQueryStatus> queryStatusLockedCacheUpdateUtil;
     
     public CachedResultsQueryCache(CachedResultsQueryProperties cachedResultsQueryProperties, CachedResultsQueryStatusCache queryStatusCache,
-                    CachedResultsQueryIdByAliasCache queryIdByAliasCache, CachedResultsQueryIdByViewCache queryIdByViewCache) {
+                    DefinedQueryIdByCachedQueryIdCache definedQueryIdByCachedQueryIdCache, DefinedQueryIdByAliasCache definedQueryIdByAliasCache,
+                    DefinedQueryIdByViewCache definedQueryIdByViewCache) {
         this.cachedResultsQueryProperties = cachedResultsQueryProperties;
         this.queryStatusCache = queryStatusCache;
-        this.queryIdByAliasCache = queryIdByAliasCache;
-        this.queryIdByViewCache = queryIdByViewCache;
+        this.definedQueryIdByCachedQueryIdCache = definedQueryIdByCachedQueryIdCache;
+        this.definedQueryIdByAliasCache = definedQueryIdByAliasCache;
+        this.definedQueryIdByViewCache = definedQueryIdByViewCache;
         this.queryStatusLockedCacheUpdateUtil = new LockedCacheUpdateUtil<>(queryStatusCache);
     }
     
-    public CachedResultsQueryStatus createQuery(String definedQueryId, String alias, DatawaveUserDetails currentUser) {
-        return queryStatusCache.create(definedQueryId, alias, currentUser);
+    public CachedResultsQueryStatus createQuery(String definedQueryId, String cachedQueryId, String alias, ProxiedUserDetails currentUser) {
+        return queryStatusCache.create(definedQueryId, cachedQueryId, alias, currentUser);
     }
     
     public CachedResultsQueryStatus lookupQueryStatus(String key) {
         CachedResultsQueryStatus cachedResultsQueryStatus = getQueryStatus(key);
         
         if (cachedResultsQueryStatus == null) {
-            cachedResultsQueryStatus = getQueryStatusByAlias(key);
+            cachedResultsQueryStatus = getQueryStatusByCachedQueryId(key);
             
             if (cachedResultsQueryStatus == null) {
-                cachedResultsQueryStatus = getQueryStatusByView(key);
+                cachedResultsQueryStatus = getQueryStatusByAlias(key);
+                
+                if (cachedResultsQueryStatus == null) {
+                    cachedResultsQueryStatus = getQueryStatusByView(key);
+                }
             }
         }
         
@@ -93,17 +100,41 @@ public class CachedResultsQueryCache {
     public CachedResultsQueryStatus removeQueryStatus(String definedQueryId) {
         CachedResultsQueryStatus cachedResultsQueryStatus = queryStatusCache.get(definedQueryId);
         queryStatusCache.remove(definedQueryId);
+        removeQueryIdByCachedQueryIdLookup(cachedResultsQueryStatus.getCachedQueryId());
         removeQueryIdByViewLookup(cachedResultsQueryStatus.getView());
         removeQueryIdByAliasLookup(cachedResultsQueryStatus.getAlias());
         return cachedResultsQueryStatus;
     }
     
     public String lookupQueryId(String key) {
-        String definedQueryId = lookupQueryIdByAlias(key);
+        String definedQueryId = lookupQueryIdByCachedQueryId(key);
         if (definedQueryId == null) {
-            definedQueryId = lookupQueryIdByView(key);
+            definedQueryId = lookupQueryIdByAlias(key);
+            if (definedQueryId == null) {
+                definedQueryId = lookupQueryIdByView(key);
+            }
         }
         return definedQueryId;
+    }
+    
+    private CachedResultsQueryStatus getQueryStatusByCachedQueryId(String cachedQueryId) {
+        String definedQueryId = lookupQueryIdByCachedQueryId(cachedQueryId);
+        return (definedQueryId != null) ? queryStatusCache.get(definedQueryId) : null;
+    }
+    
+    public String putQueryIdByCachedQueryIdLookup(String cachedQueryId, String definedQueryId) {
+        if (cachedQueryId != null) {
+            return definedQueryIdByCachedQueryIdCache.update(cachedQueryId, definedQueryId);
+        }
+        return definedQueryId;
+    }
+    
+    public String lookupQueryIdByCachedQueryId(String cachedQueryId) {
+        return definedQueryIdByCachedQueryIdCache.get(cachedQueryId);
+    }
+    
+    public void removeQueryIdByCachedQueryIdLookup(String cachedQueryId) {
+        definedQueryIdByCachedQueryIdCache.remove(cachedQueryId);
     }
     
     private CachedResultsQueryStatus getQueryStatusByAlias(String alias) {
@@ -111,38 +142,38 @@ public class CachedResultsQueryCache {
         return (definedQueryId != null) ? queryStatusCache.get(definedQueryId) : null;
     }
     
+    public String putQueryIdByAliasLookup(String alias, String definedQueryId) {
+        if (alias != null) {
+            return definedQueryIdByAliasCache.update(alias, definedQueryId);
+        }
+        return definedQueryId;
+    }
+    
+    public String lookupQueryIdByAlias(String alias) {
+        return definedQueryIdByAliasCache.get(alias);
+    }
+    
+    public void removeQueryIdByAliasLookup(String alias) {
+        definedQueryIdByAliasCache.remove(alias);
+    }
+    
     private CachedResultsQueryStatus getQueryStatusByView(String view) {
         String definedQueryId = lookupQueryIdByView(view);
         return (definedQueryId != null) ? queryStatusCache.get(definedQueryId) : null;
     }
     
-    public String putQueryIdByAliasLookup(String alias, String queryId) {
-        if (alias != null) {
-            return queryIdByAliasCache.update(alias, queryId);
-        }
-        return queryId;
-    }
-    
-    public String lookupQueryIdByAlias(String alias) {
-        return queryIdByAliasCache.get(alias);
-    }
-    
-    public void removeQueryIdByAliasLookup(String alias) {
-        queryIdByAliasCache.remove(alias);
-    }
-    
-    public String putQueryIdByViewLookup(String view, String queryId) {
+    public String putQueryIdByViewLookup(String view, String definedQueryId) {
         if (view != null) {
-            return queryIdByViewCache.update(view, queryId);
+            return definedQueryIdByViewCache.update(view, definedQueryId);
         }
-        return queryId;
+        return definedQueryId;
     }
     
     public String lookupQueryIdByView(String view) {
-        return queryIdByViewCache.get(view);
+        return definedQueryIdByViewCache.get(view);
     }
     
     public void removeQueryIdByViewLookup(String view) {
-        queryIdByViewCache.remove(view);
+        definedQueryIdByViewCache.remove(view);
     }
 }
