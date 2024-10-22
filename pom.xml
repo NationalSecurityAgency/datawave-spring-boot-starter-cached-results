@@ -8,7 +8,7 @@
         <relativePath>../../microservice-service-parent/pom.xml</relativePath>
     </parent>
     <artifactId>spring-boot-starter-datawave-cached-results</artifactId>
-    <version>1.0.10-SNAPSHOT</version>
+    <version>1.0.10</version>
     <url>https://code.nsa.gov/datawave-spring-boot-starter-cached-results</url>
     <licenses>
         <license>
@@ -19,6 +19,7 @@
     <scm>
         <connection>scm:git:https://github.com/NationalSecurityAgency/datawave-spring-boot-starter-cached-results.git</connection>
         <developerConnection>scm:git:git@github.com:NationalSecurityAgency/datawave-spring-boot-starter-cached-results.git</developerConnection>
+        <tag>1.0.10</tag>
         <url>https://github.com/NationalSecurityAgency/datawave-spring-boot-starter-cached-results</url>
     </scm>
     <properties>
