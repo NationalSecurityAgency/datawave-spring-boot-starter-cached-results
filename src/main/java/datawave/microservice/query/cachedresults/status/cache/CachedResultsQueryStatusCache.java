@@ -6,9 +6,9 @@ import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 
-import datawave.microservice.authorization.user.DatawaveUserDetails;
 import datawave.microservice.cached.LockableCacheInspector;
 import datawave.microservice.query.cachedresults.status.CachedResultsQueryStatus;
+import datawave.security.authorization.ProxiedUserDetails;
 
 @CacheConfig(cacheNames = CachedResultsQueryStatusCache.CACHE_NAME)
 public class CachedResultsQueryStatusCache extends LockableCache<CachedResultsQueryStatus> {
@@ -21,8 +21,8 @@ public class CachedResultsQueryStatusCache extends LockableCache<CachedResultsQu
     }
     
     @CachePut(key = "#definedQueryId")
-    public CachedResultsQueryStatus create(String definedQueryId, String alias, DatawaveUserDetails currentUser) {
-        return new CachedResultsQueryStatus(definedQueryId, alias, currentUser);
+    public CachedResultsQueryStatus create(String definedQueryId, String cachedQueryId, String alias, ProxiedUserDetails currentUser) {
+        return new CachedResultsQueryStatus(definedQueryId, cachedQueryId, alias, currentUser);
     }
     
     @Override

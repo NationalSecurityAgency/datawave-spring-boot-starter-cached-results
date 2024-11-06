@@ -1,6 +1,5 @@
 package datawave.microservice.query.cachedresults;
 
-import static datawave.core.query.cachedresults.CachedResultsQueryParameters.FIELDS;
 import static datawave.microservice.query.QueryParameters.QUERY_VISIBILITY;
 import static datawave.microservice.query.cachedresults.status.CachedResultsQueryStatus.CACHED_RESULTS_STATE.CANCELED;
 import static datawave.microservice.query.cachedresults.status.CachedResultsQueryStatus.CACHED_RESULTS_STATE.CREATED;
@@ -8,6 +7,7 @@ import static datawave.microservice.query.cachedresults.status.CachedResultsQuer
 import static datawave.microservice.query.cachedresults.status.CachedResultsQueryStatus.CACHED_RESULTS_STATE.FAILED;
 import static datawave.microservice.query.cachedresults.status.CachedResultsQueryStatus.CACHED_RESULTS_STATE.LOADED;
 import static datawave.microservice.query.cachedresults.status.CachedResultsQueryStatus.CACHED_RESULTS_STATE.LOADING;
+import static datawave.microservice.query.cachedresults.status.CachedResultsQueryStatus.CACHED_RESULTS_STATE.NONE;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -22,9 +22,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -53,11 +54,14 @@ import datawave.marking.MarkingFunctions;
 import datawave.marking.SecurityMarking;
 import datawave.microservice.audit.AuditClient;
 import datawave.microservice.authorization.user.DatawaveUserDetails;
+import datawave.microservice.config.RequestScopeBeanSupplier;
 import datawave.microservice.query.cachedresults.config.CachedResultsQueryProperties;
 import datawave.microservice.query.cachedresults.status.CachedResultsQueryStatus;
 import datawave.microservice.query.cachedresults.status.cache.CachedResultsQueryCache;
+import datawave.microservice.query.cachedresults.status.cache.util.CacheUpdater;
 import datawave.microservice.query.storage.QueryStatus;
 import datawave.microservice.query.storage.QueryStorageCache;
+import datawave.security.authorization.ProxiedUserDetails;
 import datawave.security.util.ProxiedEntityUtils;
 import datawave.webservice.common.audit.AuditParameters;
 import datawave.webservice.common.audit.Auditor;
@@ -105,16 +109,17 @@ public class CachedResultsQueryService {
     private final QueryService queryService;
     private final AuditClient auditClient;
     // Note: SecurityMarking needs to be request scoped
-    private final SecurityMarking securityMarking;
+    private final RequestScopeBeanSupplier<SecurityMarking> scopedSecurityMarking;
     private final QueryLogicFactory queryLogicFactory;
     private final QueryStorageCache queryStorageCache;
     private final ResponseObjectFactory responseObjectFactory;
     private final MarkingFunctions markingFunctions;
     // Note: CachedResultsQueryParameters needs to be request scoped
-    private final CachedResultsQueryParameters cachedResultsQueryParameters;
+    private final RequestScopeBeanSupplier<CachedResultsQueryParameters> scopedCachedResultsQueryParameters;
     private final String fieldDefinitions;
     private final String preparedFields;
     private final String preparedValues;
+    private final ExecutorService executorService = Executors.newCachedThreadPool();
     
     public CachedResultsQueryService(CachedResultsQueryProperties cachedResultsQueryProperties, JdbcTemplate cachedResultsJdbcTemplate,
                     CachedResultsQueryCache cachedResultsQueryCache, QueryService queryService, AuditClient auditClient, SecurityMarking securityMarking,
@@ -125,12 +130,12 @@ public class CachedResultsQueryService {
         this.cachedResultsQueryCache = cachedResultsQueryCache;
         this.queryService = queryService;
         this.auditClient = auditClient;
-        this.securityMarking = securityMarking;
+        this.scopedSecurityMarking = new RequestScopeBeanSupplier<>(securityMarking);
         this.queryLogicFactory = queryLogicFactory;
         this.queryStorageCache = queryStorageCache;
         this.responseObjectFactory = responseObjectFactory;
         this.markingFunctions = markingFunctions;
-        this.cachedResultsQueryParameters = cachedResultsQueryParameters;
+        this.scopedCachedResultsQueryParameters = new RequestScopeBeanSupplier<>(cachedResultsQueryParameters);
         this.fieldDefinitions = IntStream.range(0, cachedResultsQueryProperties.getNumFields()).mapToObj(x -> FIELD + x + " LONGTEXT")
                         .collect(Collectors.joining(", "));
         this.preparedFields = IntStream.range(0, cachedResultsQueryProperties.getNumFields()).mapToObj(x -> FIELD + x).collect(Collectors.joining(", "));
@@ -166,7 +171,7 @@ public class CachedResultsQueryService {
      * @throws QueryException
      *             if the operation fails
      */
-    public GenericResponse<String> load(String definedQueryId, String alias, DatawaveUserDetails currentUser) throws QueryException {
+    public GenericResponse<String> load(String definedQueryId, String alias, ProxiedUserDetails currentUser) throws QueryException {
         log.info("Request: {}/load from {} with alias: {}", definedQueryId, ProxiedEntityUtils.getShortName(currentUser.getPrimaryUser().getName()), alias);
         
         CachedResultsQueryStatus cachedResultsQueryStatus = null;
@@ -180,13 +185,15 @@ public class CachedResultsQueryService {
                     
                     // if a cached results query doesn't already exist, create one
                     if (cachedResultsQueryStatus == null) {
-                        cachedResultsQueryStatus = cachedResultsQueryCache.createQuery(definedQueryId, alias, currentUser);
+                        cachedResultsQueryStatus = cachedResultsQueryCache.createQuery(definedQueryId, null, alias, currentUser);
                         if (alias != null) {
                             cachedResultsQueryCache.putQueryIdByAliasLookup(cachedResultsQueryStatus.getAlias(), definedQueryId);
                         }
-                    }
-                    // if a cached results query already exists, stop
-                    else {
+                    } else if (cachedResultsQueryStatus.getState() == NONE) {
+                        // cachedResultsQueryStatus may have been set to NONE by loadAndCreateAsync
+                        cachedResultsQueryStatus.setState(LOADING);
+                    } else {
+                        // otherwise if a cached results query already exists then stop
                         if (cachedResultsQueryStatus.getState() == FAILED) {
                             log.warn("The cached results query for {} has FAILED", definedQueryId);
                         } else {
@@ -199,6 +206,13 @@ public class CachedResultsQueryService {
                     throw new QueryException(DatawaveErrorCode.QUERY_LOCKED_ERROR);
                 }
             } finally {
+                if (cachedResultsQueryStatus != null) {
+                    try {
+                        cachedResultsQueryCache.update(definedQueryId, cachedResultsQueryStatus);
+                    } catch (Exception e) {
+                        log.error("Unable to update query cache", e);
+                    }
+                }
                 if (lockAcquired) {
                     cachedResultsQueryCache.unlockQueryStatus(definedQueryId);
                 }
@@ -544,7 +558,7 @@ public class CachedResultsQueryService {
         return "v" + newQueryId.replace("-", "");
     }
     
-    public CachedResultsResponse create(String key, MultiValueMap<String,String> parameters, DatawaveUserDetails currentUser) throws QueryException {
+    public CachedResultsResponse create(String key, MultiValueMap<String,String> parameters, ProxiedUserDetails currentUser) throws QueryException {
         String user = ProxiedEntityUtils.getShortName(currentUser.getPrimaryUser().getName());
         if (log.isDebugEnabled()) {
             log.info("Request: {}/create from {} with params: {}", key, user, parameters);
@@ -582,6 +596,7 @@ public class CachedResultsQueryService {
     
     private CachedResultsResponse create(String definedQueryId, MultiValueMap<String,String> parameters)
                     throws QueryException, InterruptedException, CloneNotSupportedException {
+        CachedResultsQueryParameters cachedResultsQueryParameters = scopedCachedResultsQueryParameters.get();
         cachedResultsQueryParameters.validate(parameters);
         
         // mark the query as CREATING
@@ -592,6 +607,16 @@ public class CachedResultsQueryService {
                 throw new BadRequestQueryException("Cannot call create on a query that is not loaded", HttpStatus.SC_BAD_REQUEST + "-1");
             }
         });
+        
+        // this will allow cachedResultsQueryStatus to be accessed by the cachedQueryId
+        cachedResultsQueryCache.putQueryIdByCachedQueryIdLookup(cachedResultsQueryParameters.getQueryId(), definedQueryId);
+        cachedResultsQueryStatus.setCachedQueryId(cachedResultsQueryParameters.getQueryId());
+        
+        // this will allow cachedResultsQueryStatus to be accessed by the alias
+        if (cachedResultsQueryParameters.getAlias() != null) {
+            cachedResultsQueryCache.putQueryIdByAliasLookup(cachedResultsQueryParameters.getAlias(), definedQueryId);
+            cachedResultsQueryStatus.setAlias(cachedResultsQueryParameters.getAlias());
+        }
         
         if (cachedResultsQueryParameters.getPagesize() <= 0) {
             cachedResultsQueryParameters.setPagesize(cachedResultsQueryProperties.getDefaultPageSize());
@@ -647,13 +672,13 @@ public class CachedResultsQueryService {
         CachedResultsResponse response = new CachedResultsResponse();
         response.setAlias(cachedResultsQueryStatus.getAlias());
         response.setOriginalQueryId(cachedResultsQueryStatus.getDefinedQueryId());
-        response.setQueryId(cachedResultsQueryStatus.getRunningQueryId());
+        response.setQueryId(cachedResultsQueryStatus.getCachedQueryId());
         response.setViewName(cachedResultsQueryStatus.getView());
         response.setTotalRows(cachedResultsQueryStatus.getRowsWritten());
         return response;
     }
     
-    public CachedResultsResponse loadAndCreate(String definedQueryId, MultiValueMap<String,String> parameters, DatawaveUserDetails currentUser)
+    public CachedResultsResponse loadAndCreate(String definedQueryId, MultiValueMap<String,String> parameters, ProxiedUserDetails currentUser)
                     throws QueryException {
         String user = ProxiedEntityUtils.getShortName(currentUser.getPrimaryUser().getName());
         if (log.isDebugEnabled()) {
@@ -665,6 +690,64 @@ public class CachedResultsQueryService {
         String alias = parameters.getFirst(CachedResultsQueryParameters.ALIAS);
         GenericResponse<String> loadResponse = load(definedQueryId, alias, currentUser);
         return create(loadResponse.getResult(), parameters, currentUser);
+    }
+    
+    public VoidResponse loadAndCreateAsync(String definedQueryId, MultiValueMap<String,String> parameters, ProxiedUserDetails currentUser,
+                    CachedResultsQueryParameters threadCachedResultsQueryParameters, SecurityMarking threadSecurityMarking) {
+        VoidResponse response = new VoidResponse();
+        try {
+            String queryId = parameters.getFirst(CachedResultsQueryParameters.QUERY_ID);
+            if (queryId == null) {
+                throw new BadRequestQueryException(DatawaveErrorCode.MISSING_REQUIRED_PARAMETER, "queryId can not be null");
+            }
+            String alias = parameters.getFirst(CachedResultsQueryParameters.ALIAS);
+            // get the cached results status for the query
+            CachedResultsQueryStatus crqStatus = cachedResultsQueryCache.getQueryStatus(definedQueryId);
+            if (crqStatus != null) {
+                // if a cached results query already exists then stop
+                if (crqStatus.getState() == FAILED) {
+                    log.warn("The cached results query for {} has FAILED", definedQueryId);
+                } else {
+                    log.info("A cached results query for {} is {}", definedQueryId, crqStatus.getState());
+                }
+                throw new QueryException(DatawaveErrorCode.QUERY_LOCKED_ERROR);
+            }
+            
+            cachedResultsQueryCache.createQuery(definedQueryId, queryId, alias, currentUser);
+            cachedResultsQueryCache.lockedUpdate(definedQueryId, cachedResultsQueryStatus -> {
+                // this allows load() to differentiate between allowed loadAndCreateAsync calls (status == NONE) and
+                // disallowed duplicate load() calls (cachedResultsQueryStatus already exists and status != NONE)
+                cachedResultsQueryStatus.setState(NONE);
+                
+                // this will allow cachedResultsQueryStatus to be accessed by the cachedQueryId
+                cachedResultsQueryCache.putQueryIdByCachedQueryIdLookup(queryId, definedQueryId);
+                cachedResultsQueryStatus.setCachedQueryId(queryId);
+                
+                if (alias != null) {
+                    // this will allow cachedResultsQueryStatus to be accessed by the alias
+                    cachedResultsQueryCache.putQueryIdByAliasLookup(alias, definedQueryId);
+                    cachedResultsQueryStatus.setAlias(alias);
+                }
+            });
+            
+            executorService.submit(() -> {
+                try {
+                    scopedCachedResultsQueryParameters.getThreadLocalOverride().set(threadCachedResultsQueryParameters);
+                    scopedSecurityMarking.getThreadLocalOverride().set(threadSecurityMarking);
+                    loadAndCreate(definedQueryId, parameters, currentUser);
+                } catch (Exception e) {
+                    log.error(e.getMessage(), e);
+                    cachedResultsQueryCache.removeQueryStatus(definedQueryId);
+                } finally {
+                    scopedCachedResultsQueryParameters.getThreadLocalOverride().remove();
+                    scopedSecurityMarking.getThreadLocalOverride().remove();
+                }
+            });
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+            response.addException(e);
+        }
+        return response;
     }
     
     private MultiValueMap<String,String> createAuditParameters(CachedResultsQueryStatus cachedResultsQueryStatus) {
@@ -683,9 +766,10 @@ public class CachedResultsQueryService {
     }
     
     public void audit(String auditId, Auditor.AuditType auditType, String logicName, String origQuery, String sqlQuery, MultiValueMap<String,String> parameters,
-                    DatawaveUserDetails currentUser) throws BadRequestQueryException {
+                    ProxiedUserDetails currentUser) throws BadRequestQueryException {
         
         // if we haven't already, validate the markings
+        SecurityMarking securityMarking = scopedSecurityMarking.get();
         if (securityMarking.toColumnVisibilityString() == null) {
             validateSecurityMarkings(parameters);
         }
@@ -709,7 +793,7 @@ public class CachedResultsQueryService {
                 AuditClient.Request auditRequest = new AuditClient.Request.Builder()
                         .withParams(parameters)
                         .withQueryExpression(query)
-                        .withDatawaveUserDetails(currentUser)
+                        .withDatawaveUserDetails(new DatawaveUserDetails(currentUser.getProxiedUsers()))
                         .withMarking(securityMarking)
                         .withAuditType(Auditor.AuditType.PASSIVE)
                         .withQueryLogic(logicName)
@@ -734,13 +818,13 @@ public class CachedResultsQueryService {
         // These are parameters that aren't passed in by the user, but rather are computed from other sources.
         PrivateAuditConstants.stripPrivateParameters(parameters);
         parameters.add(PrivateAuditConstants.LOGIC_CLASS, queryLogicName);
-        parameters.set(PrivateAuditConstants.COLUMN_VISIBILITY, securityMarking.toColumnVisibilityString());
+        parameters.set(PrivateAuditConstants.COLUMN_VISIBILITY, scopedSecurityMarking.get().toColumnVisibilityString());
         parameters.add(PrivateAuditConstants.USER_DN, userDn);
     }
     
     public void validateSecurityMarkings(MultiValueMap<String,String> parameters) throws BadRequestQueryException {
         try {
-            securityMarking.validate(parameters);
+            scopedSecurityMarking.get().validate(parameters);
         } catch (IllegalArgumentException e) {
             log.error("Failed security markings validation", e);
             throw new BadRequestQueryException(DatawaveErrorCode.SECURITY_MARKING_CHECK_ERROR, e);
@@ -991,7 +1075,7 @@ public class CachedResultsQueryService {
         return false;
     }
     
-    public BaseQueryResponse getRows(String key, Integer rowBegin, Integer rowEnd, DatawaveUserDetails currentUser) throws QueryException {
+    public BaseQueryResponse getRows(String key, Integer rowBegin, Integer rowEnd, ProxiedUserDetails currentUser) throws QueryException {
         try {
             String user = ProxiedEntityUtils.getShortName(currentUser.getPrimaryUser().getName());
             if (log.isDebugEnabled()) {
@@ -1103,7 +1187,7 @@ public class CachedResultsQueryService {
         return sqlQuery + limitTerm;
     }
     
-    public GenericResponse<String> status(String key, DatawaveUserDetails currentUser) throws QueryException {
+    public GenericResponse<String> status(String key, ProxiedUserDetails currentUser) throws QueryException {
         log.info("Request: {}/status from {}", key, ProxiedEntityUtils.getShortName(currentUser.getPrimaryUser().getName()));
         
         CachedResultsQueryStatus cachedResultsQueryStatus = validateRequest(key, currentUser);
@@ -1113,7 +1197,7 @@ public class CachedResultsQueryService {
         return response;
     }
     
-    public CachedResultsDescribeResponse describe(String key, DatawaveUserDetails currentUser) throws QueryException {
+    public CachedResultsDescribeResponse describe(String key, ProxiedUserDetails currentUser) throws QueryException {
         log.info("Request: {}/describe from {}", key, ProxiedEntityUtils.getShortName(currentUser.getPrimaryUser().getName()));
         
         CachedResultsQueryStatus cachedResultsQueryStatus = validateRequest(key, currentUser);
@@ -1125,17 +1209,17 @@ public class CachedResultsQueryService {
         return response;
     }
     
-    public VoidResponse cancel(String key, DatawaveUserDetails currentUser) throws QueryException {
+    public VoidResponse cancel(String key, ProxiedUserDetails currentUser) throws QueryException {
         log.info("Request: {}/cancel from {}", key, ProxiedEntityUtils.getShortName(currentUser.getPrimaryUser().getName()));
         return cancel(key, currentUser, false);
     }
     
-    public VoidResponse adminCancel(String key, DatawaveUserDetails currentUser) throws QueryException {
+    public VoidResponse adminCancel(String key, ProxiedUserDetails currentUser) throws QueryException {
         log.info("Request: {}/adminCancel from {}", key, ProxiedEntityUtils.getShortName(currentUser.getPrimaryUser().getName()));
         return cancel(key, currentUser, true);
     }
     
-    private VoidResponse cancel(String key, DatawaveUserDetails currentUser, boolean adminOverride) throws QueryException {
+    private VoidResponse cancel(String key, ProxiedUserDetails currentUser, boolean adminOverride) throws QueryException {
         try {
             CachedResultsQueryStatus cachedResultsQueryStatus = validateRequest(key, currentUser, adminOverride);
             
@@ -1157,17 +1241,17 @@ public class CachedResultsQueryService {
         }
     }
     
-    public VoidResponse close(String key, DatawaveUserDetails currentUser) throws QueryException {
+    public VoidResponse close(String key, ProxiedUserDetails currentUser) throws QueryException {
         log.info("Request: {}/close from {}", key, ProxiedEntityUtils.getShortName(currentUser.getPrimaryUser().getName()));
         return close(key, currentUser, false);
     }
     
-    public VoidResponse adminClose(String key, DatawaveUserDetails currentUser) throws QueryException {
+    public VoidResponse adminClose(String key, ProxiedUserDetails currentUser) throws QueryException {
         log.info("Request: {}/adminClose from {}", key, ProxiedEntityUtils.getShortName(currentUser.getPrimaryUser().getName()));
         return close(key, currentUser, true);
     }
     
-    private VoidResponse close(String key, DatawaveUserDetails currentUser, boolean adminOverride) throws QueryException {
+    private VoidResponse close(String key, ProxiedUserDetails currentUser, boolean adminOverride) throws QueryException {
         try {
             CachedResultsQueryStatus cachedResultsQueryStatus = validateRequest(key, currentUser, adminOverride);
             
@@ -1178,6 +1262,10 @@ public class CachedResultsQueryService {
             
             // remove the query from the cache
             cachedResultsQueryCache.removeQueryStatus(cachedResultsQueryStatus.getDefinedQueryId());
+            
+            if (cachedResultsQueryStatus.getCachedQueryId() != null) {
+                cachedResultsQueryCache.removeQueryIdByCachedQueryIdLookup(cachedResultsQueryStatus.getCachedQueryId());
+            }
             
             if (cachedResultsQueryStatus.getAlias() != null) {
                 cachedResultsQueryCache.removeQueryIdByAliasLookup(cachedResultsQueryStatus.getAlias());
@@ -1197,7 +1285,7 @@ public class CachedResultsQueryService {
         }
     }
     
-    public CachedResultsResponse setAlias(String key, String alias, DatawaveUserDetails currentUser) throws QueryException {
+    public CachedResultsResponse setAlias(String key, String alias, ProxiedUserDetails currentUser) throws QueryException {
         try {
             log.info("Request: {}/setAlias from {} with alias {}", key, ProxiedEntityUtils.getShortName(currentUser.getPrimaryUser().getName()), alias);
             
@@ -1213,7 +1301,7 @@ public class CachedResultsQueryService {
             
             CachedResultsResponse response = new CachedResultsResponse();
             response.setOriginalQueryId(cachedResultsQueryStatus.getRunningQueryId());
-            response.setQueryId(key);
+            response.setQueryId(cachedResultsQueryStatus.getCachedQueryId());
             response.setViewName(cachedResultsQueryStatus.getView());
             response.setAlias(cachedResultsQueryStatus.getAlias());
             response.setTotalRows(cachedResultsQueryStatus.getRowsWritten());
@@ -1228,7 +1316,7 @@ public class CachedResultsQueryService {
     }
     
     public CachedResultsResponse update(String key, String fields, String conditions, String grouping, String order, Integer pagesize,
-                    DatawaveUserDetails currentUser) throws QueryException {
+                    ProxiedUserDetails currentUser) throws QueryException {
         try {
             String user = ProxiedEntityUtils.getShortName(currentUser.getPrimaryUser().getName());
             if (log.isDebugEnabled()) {
@@ -1312,18 +1400,18 @@ public class CachedResultsQueryService {
         
         CachedResultsResponse response = new CachedResultsResponse();
         response.setOriginalQueryId(cachedResultsQueryStatus.getRunningQueryId());
-        response.setQueryId(key);
+        response.setQueryId(cachedResultsQueryStatus.getCachedQueryId());
         response.setViewName(cachedResultsQueryStatus.getView());
         response.setAlias(cachedResultsQueryStatus.getAlias());
         response.setTotalRows(cachedResultsQueryStatus.getRowsWritten());
         return response;
     }
     
-    private CachedResultsQueryStatus validateRequest(String key, DatawaveUserDetails currentUser) throws NotFoundQueryException, UnauthorizedQueryException {
+    private CachedResultsQueryStatus validateRequest(String key, ProxiedUserDetails currentUser) throws NotFoundQueryException, UnauthorizedQueryException {
         return validateRequest(key, currentUser, false);
     }
     
-    private CachedResultsQueryStatus validateRequest(String key, DatawaveUserDetails currentUser, boolean adminOverride)
+    private CachedResultsQueryStatus validateRequest(String key, ProxiedUserDetails currentUser, boolean adminOverride)
                     throws NotFoundQueryException, UnauthorizedQueryException {
         // does the query exist?
         CachedResultsQueryStatus cachedResultsQueryStatus = cachedResultsQueryCache.lookupQueryStatus(key);
@@ -1342,5 +1430,13 @@ public class CachedResultsQueryService {
         }
         
         return cachedResultsQueryStatus;
+    }
+    
+    public ThreadLocal<SecurityMarking> getSecurityMarkingOverride() {
+        return scopedSecurityMarking.getThreadLocalOverride();
+    }
+    
+    public ThreadLocal<CachedResultsQueryParameters> getCachedResultsQueryParametersOverride() {
+        return scopedCachedResultsQueryParameters.getThreadLocalOverride();
     }
 }

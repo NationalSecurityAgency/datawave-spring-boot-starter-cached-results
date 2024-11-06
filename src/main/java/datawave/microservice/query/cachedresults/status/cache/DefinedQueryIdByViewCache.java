@@ -1,6 +1,6 @@
 package datawave.microservice.query.cachedresults.status.cache;
 
-import static datawave.microservice.query.cachedresults.status.cache.CachedResultsQueryIdByViewCache.CACHE_NAME;
+import static datawave.microservice.query.cachedresults.status.cache.DefinedQueryIdByViewCache.CACHE_NAME;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,12 +11,12 @@ import org.springframework.cache.annotation.CachePut;
 import datawave.microservice.cached.LockableCacheInspector;
 
 @CacheConfig(cacheNames = CACHE_NAME)
-public class CachedResultsQueryIdByViewCache extends LockableCache<String> {
+public class DefinedQueryIdByViewCache extends LockableCache<String> {
     private final Logger log = LoggerFactory.getLogger(this.getClass());
     
-    public static final String CACHE_NAME = "cachedResultsQueryIdByViewCache";
+    public static final String CACHE_NAME = "definedQueryIdByViewCache";
     
-    public CachedResultsQueryIdByViewCache(LockableCacheInspector cacheInspector) {
+    public DefinedQueryIdByViewCache(LockableCacheInspector cacheInspector) {
         super(cacheInspector, CACHE_NAME);
     }
     
